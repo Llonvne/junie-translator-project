@@ -146,6 +146,42 @@ def custom_translator_example(srt_path):
         print(f.read(200) + "...")
 
 
+def deepseek_translation_example(srt_path):
+    """Demonstrate translation using DeepSeek models."""
+    print("\n=== DeepSeek Translation Example ===")
+    
+    # Check if we have a DeepSeek API key
+    api_key = os.environ.get("DEEPSEEK_API_KEY")
+    if not api_key:
+        print("No DeepSeek API key found. Skipping DeepSeek example.")
+        print("Set the DEEPSEEK_API_KEY environment variable to run this example.")
+        return
+    
+    # Example with DeepSeek R1 model
+    print("Translating with DeepSeek R1 model...")
+    output_path_r1 = translate_srt(
+        input_path=str(srt_path),
+        target_language="German",
+        translator_type="deepseek",
+        api_key=api_key,
+        model="deepseek-r1",  # Specify R1 model
+        output_path=str(Path(srt_path).with_name("deepseek_r1_german.srt"))
+    )
+    print(f"Translation completed. Output file: {output_path_r1}")
+    
+    # Example with DeepSeek V3 model
+    print("\nTranslating with DeepSeek V3 model...")
+    output_path_v3 = translate_srt(
+        input_path=str(srt_path),
+        target_language="Japanese",
+        translator_type="deepseek",
+        api_key=api_key,
+        model="deepseek-v3",  # Specify V3 model
+        output_path=str(Path(srt_path).with_name("deepseek_v3_japanese.srt"))
+    )
+    print(f"Translation completed. Output file: {output_path_v3}")
+
+
 def main():
     """Run the example script."""
     print("Junie Translator Project - Example Script")
@@ -158,6 +194,7 @@ def main():
     basic_translation_example(srt_path)
     advanced_translation_example(srt_path)
     custom_translator_example(srt_path)
+    deepseek_translation_example(srt_path)
     
     print("\nAll examples completed successfully!")
 

@@ -2,7 +2,12 @@
 Translator Module - Handles translation of text using AI services.
 
 This module provides an extensible framework for translating text using
-various AI services like OpenAI or other compatible services.
+various AI services like OpenAI, DeepSeek, or other compatible services.
+
+Supported translator services:
+- OpenAI: Uses OpenAI's GPT models for translation
+- DeepSeek: Uses DeepSeek's R1 and V3 models for translation
+- Mock: A simple mock translator for testing purposes
 """
 
 import abc
@@ -118,6 +123,89 @@ class OpenAITranslator(TranslatorService):
         return [self.translate(text, target_language) for text in texts]
 
 
+class DeepSeekTranslator(TranslatorService):
+    """Translator service using DeepSeek API."""
+
+    def __init__(self, api_key: Optional[str] = None, model: str = "deepseek-v3"):
+        """
+        Initialize the DeepSeek translator.
+        
+        Args:
+            api_key: DeepSeek API key (if None, will try to get from environment)
+            model: DeepSeek model to use for translation (deepseek-r1 or deepseek-v3)
+        """
+        if not OPENAI_AVAILABLE:
+            raise ImportError(
+                "OpenAI package is not installed. "
+                "Please install it with 'uv pip install openai'"
+            )
+        
+        self.api_key = api_key or os.environ.get("DEEPSEEK_API_KEY")
+        if not self.api_key:
+            raise ValueError(
+                "DeepSeek API key is required. "
+                "Either pass it as an argument or set the DEEPSEEK_API_KEY environment variable."
+            )
+        
+        # Validate and normalize model name
+        if model.lower() in ["deepseek-r1", "r1", "deepseek-chat-r1"]:
+            self.model = "deepseek-chat-r1"
+        elif model.lower() in ["deepseek-v3", "v3", "deepseek-chat-v3"]:
+            self.model = "deepseek-chat-v3"
+        else:
+            raise ValueError(
+                f"Unsupported DeepSeek model: {model}. "
+                "Supported models are: deepseek-r1, deepseek-v3"
+            )
+        
+        # DeepSeek uses OpenAI-compatible API with a different base URL
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.deepseek.com/v1"  # DeepSeek API endpoint
+        )
+
+    def translate(self, text: str, target_language: str) -> str:
+        """
+        Translate the given text to the target language using DeepSeek.
+        
+        Args:
+            text: The text to translate
+            target_language: The target language code or name
+            
+        Returns:
+            The translated text
+        """
+        prompt = f"Translate the following text to {target_language}. Preserve any formatting and special characters:\n\n{text}"
+        
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": "You are a professional translator."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=1024
+        )
+        
+        return response.choices[0].message.content.strip()
+
+    def batch_translate(self, texts: List[str], target_language: str) -> List[str]:
+        """
+        Translate a batch of texts to the target language.
+        
+        Note: This implementation translates one text at a time to ensure
+        accurate translations and to avoid exceeding token limits.
+        
+        Args:
+            texts: List of texts to translate
+            target_language: The target language code or name
+            
+        Returns:
+            List of translated texts
+        """
+        return [self.translate(text, target_language) for text in texts]
+
+
 class MockTranslator(TranslatorService):
     """Mock translator service for testing purposes."""
 
@@ -157,7 +245,7 @@ class TranslatorFactory:
         Create a translator service instance.
         
         Args:
-            service_type: Type of translator service ('openai', 'mock', etc.)
+            service_type: Type of translator service ('openai', 'deepseek', 'mock', etc.)
             **kwargs: Additional arguments to pass to the translator constructor
             
         Returns:
@@ -168,6 +256,8 @@ class TranslatorFactory:
         """
         if service_type.lower() == 'openai':
             return OpenAITranslator(**kwargs)
+        elif service_type.lower() == 'deepseek':
+            return DeepSeekTranslator(**kwargs)
         elif service_type.lower() == 'mock':
             return MockTranslator()
         else:
