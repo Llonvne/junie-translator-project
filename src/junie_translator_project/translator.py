@@ -240,20 +240,79 @@ class TranslatorFactory:
     """Factory for creating translator service instances."""
     
     @staticmethod
-    def create_translator(service_type: str, **kwargs) -> TranslatorService:
+    def detect_available_services():
+        """
+        Detect available translator services based on environment variables.
+        
+        Returns:
+            A list of available service types ('openai', 'deepseek', 'mock')
+        """
+        available_services = ['mock']  # Mock is always available
+        
+        # Check for OpenAI API key
+        if os.environ.get("OPENAI_API_KEY"):
+            available_services.append('openai')
+            
+        # Check for DeepSeek API key
+        if os.environ.get("DEEPSEEK_API_KEY"):
+            available_services.append('deepseek')
+            
+        return available_services
+    
+    @staticmethod
+    def get_default_model(service_type: str) -> str:
+        """
+        Get the default model for a given service type.
+        
+        Args:
+            service_type: Type of translator service ('openai', 'deepseek')
+            
+        Returns:
+            The default model name for the service
+        """
+        if service_type.lower() == 'openai':
+            return "gpt-3.5-turbo"
+        elif service_type.lower() == 'deepseek':
+            return "deepseek-v3"
+        else:
+            return ""
+    
+    @staticmethod
+    def create_translator(service_type: str = "auto", **kwargs) -> TranslatorService:
         """
         Create a translator service instance.
         
         Args:
-            service_type: Type of translator service ('openai', 'deepseek', 'mock', etc.)
+            service_type: Type of translator service ('openai', 'deepseek', 'mock', 'auto')
+                          If 'auto', will auto-detect based on available API keys
             **kwargs: Additional arguments to pass to the translator constructor
             
         Returns:
             A TranslatorService instance
             
         Raises:
-            ValueError: If the service type is not supported
+            ValueError: If the service type is not supported or no services are available
         """
+        # Auto-detect service if requested
+        if service_type.lower() == 'auto':
+            available_services = TranslatorFactory.detect_available_services()
+            # Prefer OpenAI, then DeepSeek, then Mock
+            if 'openai' in available_services:
+                service_type = 'openai'
+            elif 'deepseek' in available_services:
+                service_type = 'deepseek'
+            elif 'mock' in available_services:
+                service_type = 'mock'
+            else:
+                raise ValueError("No translator services available. Please set OPENAI_API_KEY or DEEPSEEK_API_KEY environment variables.")
+        
+        # Set default model if not provided
+        if 'model' not in kwargs:
+            default_model = TranslatorFactory.get_default_model(service_type)
+            if default_model:
+                kwargs['model'] = default_model
+        
+        # Create the appropriate translator
         if service_type.lower() == 'openai':
             return OpenAITranslator(**kwargs)
         elif service_type.lower() == 'deepseek':

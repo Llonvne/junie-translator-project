@@ -25,9 +25,9 @@ class SRTTranslator:
     def __init__(
         self,
         translator_service: Optional[TranslatorService] = None,
-        translator_type: str = "openai",
+        translator_type: str = "auto",
         api_key: Optional[str] = None,
-        model: str = "gpt-3.5-turbo",
+        model: Optional[str] = None,
         show_progress: bool = True
     ):
         """
@@ -36,8 +36,10 @@ class SRTTranslator:
         Args:
             translator_service: A TranslatorService instance (if None, one will be created)
             translator_type: Type of translator service to create if translator_service is None
-            api_key: API key for the translator service
-            model: Model to use for translation
+                            ('auto', 'openai', 'deepseek', 'mock'). If 'auto', will auto-detect
+                            based on available API keys in environment variables.
+            api_key: API key for the translator service (if None, will try to get from environment)
+            model: Model to use for translation (if None, will use service-specific defaults)
             show_progress: Whether to show a progress bar during translation
         """
         self.translator = translator_service or TranslatorFactory.create_translator(
@@ -127,9 +129,9 @@ def translate_srt(
     input_path: str,
     target_language: str,
     output_path: Optional[str] = None,
-    translator_type: str = "openai",
+    translator_type: str = "auto",
     api_key: Optional[str] = None,
-    model: str = "gpt-3.5-turbo",
+    model: Optional[str] = None,
     show_progress: bool = True
 ) -> str:
     """
@@ -139,9 +141,11 @@ def translate_srt(
         input_path: Path to the input SRT file
         target_language: Target language code or name
         output_path: Path to the output SRT file (if None, will be generated)
-        translator_type: Type of translator service to use
-        api_key: API key for the translator service
-        model: Model to use for translation
+        translator_type: Type of translator service to use ('auto', 'openai', 'deepseek', 'mock')
+                        If 'auto', will auto-detect based on available API keys in environment variables.
+        api_key: API key for the translator service (if None, will try to get from environment)
+        model: Model to use for translation (if None, will use service-specific defaults:
+              gpt-3.5-turbo for OpenAI, deepseek-v3 for DeepSeek)
         show_progress: Whether to show a progress bar during translation
         
     Returns:

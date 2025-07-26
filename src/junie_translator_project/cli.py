@@ -46,9 +46,9 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     
     parser.add_argument(
         "-t", "--translator",
-        default="openai",
-        choices=["openai", "mock"],
-        help="Translator service to use"
+        default="auto",
+        choices=["auto", "openai", "deepseek", "mock"],
+        help="Translator service to use ('auto' will detect based on available API keys)"
     )
     
     parser.add_argument(
@@ -58,8 +58,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     
     parser.add_argument(
         "-m", "--model",
-        default="gpt-3.5-turbo",
-        help="Model to use for translation (for OpenAI)"
+        help="Model to use for translation (defaults to gpt-3.5-turbo for OpenAI, deepseek-v3 for DeepSeek)"
     )
     
     parser.add_argument(
@@ -91,15 +90,28 @@ def main(args: Optional[List[str]] = None) -> int:
         
         # Get API key from environment if not provided
         api_key = parsed_args.api_key
-        if not api_key and parsed_args.translator == "openai":
-            api_key = os.environ.get("OPENAI_API_KEY")
-            if not api_key:
-                print(
-                    "Error: OpenAI API key is required. "
-                    "Either provide it with --api-key or set the OPENAI_API_KEY environment variable.",
-                    file=sys.stderr
-                )
-                return 1
+        
+        # For explicit service types, check for the appropriate API key
+        if not api_key:
+            if parsed_args.translator == "openai":
+                api_key = os.environ.get("OPENAI_API_KEY")
+                if not api_key:
+                    print(
+                        "Error: OpenAI API key is required. "
+                        "Either provide it with --api-key or set the OPENAI_API_KEY environment variable.",
+                        file=sys.stderr
+                    )
+                    return 1
+            elif parsed_args.translator == "deepseek":
+                api_key = os.environ.get("DEEPSEEK_API_KEY")
+                if not api_key:
+                    print(
+                        "Error: DeepSeek API key is required. "
+                        "Either provide it with --api-key or set the DEEPSEEK_API_KEY environment variable.",
+                        file=sys.stderr
+                    )
+                    return 1
+            # For auto mode, the TranslatorFactory will handle API key detection
         
         # Translate the file
         output_path = translate_srt(

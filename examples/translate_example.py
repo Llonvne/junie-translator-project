@@ -182,6 +182,44 @@ def deepseek_translation_example(srt_path):
     print(f"Translation completed. Output file: {output_path_v3}")
 
 
+def auto_detection_example(srt_path):
+    """Demonstrate auto-detection of available translator services."""
+    print("\n=== Auto-Detection Example ===")
+    
+    # Check which API keys are available in the environment
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
+    
+    available_services = []
+    if openai_key:
+        available_services.append("OpenAI")
+    if deepseek_key:
+        available_services.append("DeepSeek")
+    
+    if not available_services:
+        print("No API keys found in environment. Auto-detection will use mock translator.")
+    else:
+        print(f"Found API keys for: {', '.join(available_services)}")
+        print(f"Auto-detection will prefer OpenAI over DeepSeek if both are available.")
+    
+    # Use auto-detection (default behavior)
+    print("\nTranslating with auto-detected service...")
+    output_path = translate_srt(
+        input_path=str(srt_path),
+        target_language="Italian",
+        # No need to specify translator_type - defaults to "auto"
+        # No need to specify model - will use service-specific defaults
+        output_path=str(Path(srt_path).with_name("auto_detected_italian.srt"))
+    )
+    
+    print(f"Translation completed. Output file: {output_path}")
+    
+    # Print the first few lines of the translated file
+    print("\nFirst few lines of the translated file:")
+    with open(output_path, "r", encoding="utf-8") as f:
+        print(f.read(200) + "...")
+
+
 def main():
     """Run the example script."""
     print("Junie Translator Project - Example Script")
@@ -195,6 +233,7 @@ def main():
     advanced_translation_example(srt_path)
     custom_translator_example(srt_path)
     deepseek_translation_example(srt_path)
+    auto_detection_example(srt_path)
     
     print("\nAll examples completed successfully!")
 
