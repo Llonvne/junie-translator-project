@@ -1,6 +1,18 @@
 [project]
 name = "junie-translator-project"
 version = "0.1.0"
-description = "Add your description here"
+description = "A tool for translating subtitle files using AI services"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "openai>=1.0.0",
+    "tqdm>=4.66.0",
+]
+readme = "README.md"
+license = { text = "MIT" }
+
+[project.scripts]
+junie-translator = "junie_translator.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
