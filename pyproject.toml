@@ -1,6 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "junie-translator-project"
+name = "junie_translator"
 version = "0.1.0"
-description = "Add your description here"
-requires-python = ">=3.13"
-dependencies = []
+description = "A Python program to translate .srt subtitle files using AI services"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Junie", email = "junie@example.com"},
+]
+dependencies = [
+    "openai>=1.0.0",
+    "tqdm>=4.65.0",
+    "pysrt>=1.1.2",
+    "typer>=0.9.0",
+    "rich>=13.4.2",
+]
+
+[project.scripts]
+junie-translate = "junie_translator.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/junie_translator"]
