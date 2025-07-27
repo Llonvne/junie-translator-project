@@ -148,14 +148,14 @@ class DeepSeekTranslator(TranslatorService):
             )
         
         # Validate and normalize model name
-        if model.lower() in ["deepseek-r1", "r1", "deepseek-chat-r1"]:
-            self.model = "deepseek-chat-r1"
-        elif model.lower() in ["deepseek-v3", "v3", "deepseek-chat-v3"]:
-            self.model = "deepseek-chat-v3"
+        if model.lower() in ["deepseek-r1", "r1", "deepseek-reasoner"]:
+            self.model = "deepseek-reasoner"
+        elif model.lower() in ["deepseek-v3", "v3", "deepseek-chat"]:
+            self.model = "deepseek-chat"
         else:
             raise ValueError(
                 f"Unsupported DeepSeek model: {model}. "
-                "Supported models are: deepseek-r1, deepseek-v3"
+                "Supported models are: deepseek-r1 (maps to deepseek-reasoner), deepseek-v3 (maps to deepseek-chat)"
             )
         
         # DeepSeek uses OpenAI-compatible API with a different base URL
@@ -273,7 +273,7 @@ class TranslatorFactory:
         if service_type.lower() == 'openai':
             return "gpt-3.5-turbo"
         elif service_type.lower() == 'deepseek':
-            return "deepseek-v3"
+            return "deepseek-v3"  # This will be mapped to "deepseek-chat" in DeepSeekTranslator
         else:
             return ""
     
