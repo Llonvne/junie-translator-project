@@ -1,0 +1,24 @@
+{
+  "name": "srt-translator-webui",
+  "version": "1.0.0",
+  "description": "SRT字幕翻译器的Web UI界面",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "vite preview --port 3000"
+  },
+  "dependencies": {
+    "vue": "^3.3.0",
+    "vue-router": "^4.2.0",
+    "axios": "^1.5.0",
+    "element-plus": "^2.3.0",
+    "@element-plus/icons-vue": "^2.3.0",
+    "pinia": "^2.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.3.0",
+    "vite": "^4.4.0",
+    "sass": "^1.66.0"
+  }
+}
