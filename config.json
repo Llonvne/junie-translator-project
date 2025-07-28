@@ -6,5 +6,6 @@
     "api-key": null
   },
   "output-directory": "./output",
-  "model": null
+  "model": null,
+  "prompt-style": "default"
 }

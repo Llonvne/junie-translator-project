@@ -16,6 +16,10 @@ A Python program for translating SRT subtitle files using AI services like OpenA
 - Asynchronous processing for improved performance with multiple files and entries
 - Detailed runtime logging for better debugging
 - GitHub Actions support for automatic testing with API keys from GitHub Secrets
+- **Colorful, human-readable logs** for better readability and debugging
+- **Chinese support** in comments, logs, and documentation
+- **Customizable AI prompts** via prompts.json for different translation styles
+- **JSON schema** for configuration validation and documentation
 
 ## Installation
 
@@ -68,9 +72,88 @@ You can use a configuration file to store your settings. The default file name i
     "api-key": "your-api-key-here"
   },
   "output-directory": "./output",
-  "model": "gpt-3.5-turbo"
+  "model": "gpt-3.5-turbo",
+  "prompt-style": "subtitle"
 }
 ```
+
+#### JSON Schema
+
+A JSON schema is provided in `config.schema.json` to validate your configuration and provide documentation for all available options. You can use tools like Visual Studio Code with JSON schema support to get auto-completion and validation while editing your config file.
+
+To associate the schema with your config file in VS Code, add this line at the top of your `config.json`:
+
+```json
+{
+  "$schema": "./config.schema.json",
+  "from-language": "auto",
+  "to-language": "Spanish"
+}
+```
+
+### Customizable AI Prompts
+
+The translator supports customizable AI prompts through a `prompts.json` file in the project root. This allows you to define different translation styles and even support different languages for the prompts themselves.
+
+Here's an example of the `prompts.json` structure:
+
+```json
+{
+  "default": {
+    "system": "You are a professional translator. Translate the text accurately while preserving the original meaning, tone, and formatting.",
+    "user": "Translate the following text to {target_language}. Preserve any formatting and special characters:\n\n{text}"
+  },
+  "chinese": {
+    "system": "你是一位专业翻译。请准确翻译文本，同时保留原始含义、语气和格式。",
+    "user": "请将以下文本翻译成{target_language}。保留任何格式和特殊字符：\n\n{text}"
+  },
+  "subtitle": {
+    "system": "You are a professional subtitle translator. Translate concisely while preserving the original meaning. Keep translations brief enough to be read quickly as subtitles.",
+    "user": "Translate the following subtitle text to {target_language}. Keep the translation concise and easy to read quickly. Preserve the original meaning and any formatting:\n\n{text}"
+  }
+}
+```
+
+To use a specific prompt style, set the `prompt-style` field in your `config.json`:
+
+```json
+{
+  "prompt-style": "subtitle"
+}
+```
+
+Available prompt styles in the default `prompts.json`:
+- `default`: Standard professional translation
+- `chinese`: Translation prompts in Chinese
+- `formal`: For formal and official documents
+- `casual`: For casual and conversational content
+- `technical`: For technical content with specialized terminology
+- `subtitle`: Specifically for subtitle translation (concise and easy to read quickly)
+
+### Colorful, Human-Readable Logs
+
+The translator now supports colorful, human-readable logs for better readability and debugging. Different log levels are displayed in different colors:
+
+- DEBUG: Cyan
+- INFO: Green
+- WARNING: Yellow
+- ERROR: Red
+- CRITICAL: Red with white background
+
+To enable verbose logging with more detailed information:
+
+```bash
+srt-translate -v
+```
+
+### Chinese Support
+
+The translator includes support for Chinese in comments, logs, and documentation. This includes:
+
+- Chinese documentation in module docstrings
+- Chinese log messages
+- Chinese prompts in prompts.json
+- Full support for translating to and from Chinese
 
 ### Environment Variables
 

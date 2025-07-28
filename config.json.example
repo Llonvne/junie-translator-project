@@ -6,5 +6,6 @@
     "api-key": "your-api-key-here"
   },
   "output-directory": "./output",
-  "model": "gpt-3.5-turbo"
+  "model": "gpt-3.5-turbo",
+  "prompt-style": "subtitle"
 }

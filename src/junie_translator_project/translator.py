@@ -9,13 +9,25 @@ Supported translator services:
 - OpenAI: Uses OpenAI's GPT models for translation
 - DeepSeek: Uses DeepSeek's R1 and V3 models for translation
 - Mock: A simple mock translator for testing purposes
+
+翻译模块 - 使用AI服务处理文本翻译。
+
+本模块提供了一个可扩展的框架，使用各种AI服务（如OpenAI、DeepSeek或其他兼容服务）
+来翻译文本。它支持同步和异步翻译方法。
+
+支持的翻译服务：
+- OpenAI：使用OpenAI的GPT模型进行翻译
+- DeepSeek：使用DeepSeek的R1和V3模型进行翻译
+- Mock：一个简单的模拟翻译器，用于测试目的
 """
 
 import abc
 import os
+import json
 import asyncio
 import logging
-from typing import List, Optional, Dict, Any, Union
+from pathlib import Path
+from typing import List, Optional, Dict, Any, Union, Tuple
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -26,6 +38,49 @@ try:
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
+
+# Default prompts if prompts.json is not available
+DEFAULT_PROMPTS = {
+    "default": {
+        "system": "You are a professional translator. Translate the text accurately while preserving the original meaning, tone, and formatting.",
+        "user": "Translate the following text to {target_language}. Preserve any formatting and special characters:\n\n{text}"
+    }
+}
+
+def load_prompts(prompt_style: str = "default") -> Tuple[str, str]:
+    """
+    Load translation prompts from prompts.json file.
+    
+    Args:
+        prompt_style: The style of prompts to use (default, chinese, formal, etc.)
+        
+    Returns:
+        A tuple of (system_prompt, user_prompt_template)
+    """
+    prompts_file = Path("prompts.json")
+    
+    try:
+        if prompts_file.exists():
+            with open(prompts_file, 'r', encoding='utf-8') as f:
+                prompts = json.load(f)
+                
+            # If the requested style doesn't exist, fall back to default
+            if prompt_style not in prompts:
+                logger.warning(f"Prompt style '{prompt_style}' not found in prompts.json, using default")
+                prompt_style = "default"
+                
+            # If default doesn't exist either, use hardcoded defaults
+            if prompt_style not in prompts:
+                logger.warning("Default prompts not found in prompts.json, using built-in defaults")
+                return DEFAULT_PROMPTS["default"]["system"], DEFAULT_PROMPTS["default"]["user"]
+                
+            return prompts[prompt_style]["system"], prompts[prompt_style]["user"]
+        else:
+            logger.warning("prompts.json not found, using built-in default prompts")
+            return DEFAULT_PROMPTS["default"]["system"], DEFAULT_PROMPTS["default"]["user"]
+    except Exception as e:
+        logger.error(f"Error loading prompts: {e}", exc_info=True)
+        return DEFAULT_PROMPTS["default"]["system"], DEFAULT_PROMPTS["default"]["user"]
 
 
 class TranslatorService(abc.ABC):
@@ -91,13 +146,14 @@ class TranslatorService(abc.ABC):
 class OpenAITranslator(TranslatorService):
     """Translator service using OpenAI API."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-3.5-turbo"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-3.5-turbo", prompt_style: str = "default"):
         """
         Initialize the OpenAI translator.
         
         Args:
             api_key: OpenAI API key (if None, will try to get from environment)
             model: OpenAI model to use for translation
+            prompt_style: Style of prompts to use from prompts.json (default, chinese, formal, etc.)
         """
         if not OPENAI_AVAILABLE:
             raise ImportError(
@@ -113,8 +169,10 @@ class OpenAITranslator(TranslatorService):
             )
         
         self.model = model
+        self.prompt_style = prompt_style
+        self.system_prompt, self.user_prompt_template = load_prompts(prompt_style)
         self.client = openai.OpenAI(api_key=self.api_key)
-        logger.info(f"Initialized OpenAI translator with model: {model}")
+        logger.info(f"Initialized OpenAI translator with model: {model}, prompt style: {prompt_style}")
 
     def translate(self, text: str, target_language: str) -> str:
         """
@@ -127,14 +185,16 @@ class OpenAITranslator(TranslatorService):
         Returns:
             The translated text
         """
-        logger.debug(f"Translating text to {target_language} using OpenAI")
-        prompt = f"Translate the following text to {target_language}. Preserve any formatting and special characters:\n\n{text}"
+        logger.debug(f"Translating text to {target_language} using OpenAI with {self.prompt_style} prompt style")
+        
+        # Format the user prompt template with the target language and text
+        user_prompt = self.user_prompt_template.format(target_language=target_language, text=text)
         
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": "You are a professional translator."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": user_prompt}
             ],
             temperature=0.3,
             max_tokens=1024
@@ -212,13 +272,14 @@ class OpenAITranslator(TranslatorService):
 class DeepSeekTranslator(TranslatorService):
     """Translator service using DeepSeek API."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "deepseek-v3"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "deepseek-v3", prompt_style: str = "default"):
         """
         Initialize the DeepSeek translator.
         
         Args:
             api_key: DeepSeek API key (if None, will try to get from environment)
             model: DeepSeek model to use for translation (deepseek-r1 or deepseek-v3)
+            prompt_style: Style of prompts to use from prompts.json (default, chinese, formal, etc.)
         """
         if not OPENAI_AVAILABLE:
             raise ImportError(
@@ -244,13 +305,17 @@ class DeepSeekTranslator(TranslatorService):
                 "Supported models are: deepseek-r1 (maps to deepseek-reasoner), deepseek-v3 (maps to deepseek-chat)"
             )
         
+        # Load prompts from prompts.json
+        self.prompt_style = prompt_style
+        self.system_prompt, self.user_prompt_template = load_prompts(prompt_style)
+        
         # DeepSeek uses OpenAI-compatible API with a different base URL
         self.client = openai.OpenAI(
             api_key=self.api_key,
             base_url="https://api.deepseek.com/v1"  # DeepSeek API endpoint
         )
         
-        logger.info(f"Initialized DeepSeek translator with model: {self.model}")
+        logger.info(f"Initialized DeepSeek translator with model: {self.model}, prompt style: {prompt_style}")
 
     def translate(self, text: str, target_language: str) -> str:
         """
@@ -263,14 +328,16 @@ class DeepSeekTranslator(TranslatorService):
         Returns:
             The translated text
         """
-        logger.debug(f"Translating text to {target_language} using DeepSeek")
-        prompt = f"Translate the following text to {target_language}. Preserve any formatting and special characters:\n\n{text}"
+        logger.debug(f"Translating text to {target_language} using DeepSeek with {self.prompt_style} prompt style")
+        
+        # Format the user prompt template with the target language and text
+        user_prompt = self.user_prompt_template.format(target_language=target_language, text=text)
         
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": "You are a professional translator."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": user_prompt}
             ],
             temperature=0.3,
             max_tokens=1024
@@ -475,6 +542,9 @@ class TranslatorFactory:
             service_type: Type of translator service ('openai', 'deepseek', 'mock', 'auto')
                           If 'auto', will auto-detect based on available API keys
             **kwargs: Additional arguments to pass to the translator constructor
+                      - api_key: API key for the service
+                      - model: Model to use for translation
+                      - prompt_style: Style of prompts to use (default, chinese, formal, etc.)
             
         Returns:
             A TranslatorService instance
@@ -507,6 +577,7 @@ class TranslatorFactory:
         elif service_type.lower() == 'deepseek':
             return DeepSeekTranslator(**kwargs)
         elif service_type.lower() == 'mock':
+            # MockTranslator doesn't use prompt_style, so we don't pass it
             return MockTranslator()
         else:
             raise ValueError(f"Unsupported translator service type: {service_type}")

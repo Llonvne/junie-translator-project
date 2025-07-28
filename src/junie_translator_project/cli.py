@@ -4,21 +4,43 @@ Command-Line Interface Module - Provides a CLI for the translator program.
 This module provides a command-line interface for translating SRT files
 using the functionality provided by the main module.
 Only config.json configuration is supported.
+
+支持中文注释、日志和文档。
 """
 
 import argparse
 import sys
 import logging
+import colorlog
 from typing import List, Optional
 
 from junie_translator_project.main import main as config_main
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+# Configure colorful logging
+handler = colorlog.StreamHandler()
+handler.setFormatter(colorlog.ColoredFormatter(
+    '%(log_color)s%(asctime)s [%(levelname)s] %(name)s: %(message)s%(reset)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    log_colors={
+        'DEBUG': 'cyan',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'red,bg_white',
+    },
+    secondary_log_colors={},
+    style='%'
+))
+
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.addHandler(handler)
+
+# Remove any default handlers
+for h in root_logger.handlers[:]:
+    if not isinstance(h, colorlog.StreamHandler):
+        root_logger.removeHandler(h)
+
 logger = logging.getLogger(__name__)
 
 

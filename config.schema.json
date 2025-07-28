@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Junie Translator Configuration",
+  "description": "Configuration schema for the Junie Translator project",
+  "type": "object",
+  "properties": {
+    "from-language": {
+      "type": "string",
+      "description": "Source language for translation. Use 'auto' for automatic detection.",
+      "default": "auto",
+      "examples": ["auto", "English", "Chinese", "Japanese", "Korean"]
+    },
+    "to-language": {
+      "type": "string",
+      "description": "Target language for translation.",
+      "examples": ["English", "Spanish", "French", "German", "Chinese", "Japanese", "Korean"]
+    },
+    "ai-api-service": {
+      "type": "object",
+      "description": "AI service provider configuration",
+      "properties": {
+        "api-service-provider": {
+          "type": "string",
+          "description": "AI service provider to use. Use 'auto' to auto-detect based on available API keys.",
+          "enum": ["auto", "openai", "deepseek", "mock"],
+          "default": "auto"
+        },
+        "api-key": {
+          "type": ["string", "null"],
+          "description": "API key for the AI service. If null, will try to get from environment variables."
+        }
+      },
+      "required": ["api-service-provider"],
+      "additionalProperties": false
+    },
+    "output-directory": {
+      "type": ["string", "null"],
+      "description": "Directory for output files. If null, will use the same directory as the input file.",
+      "examples": ["./output", "/path/to/output"]
+    },
+    "model": {
+      "type": ["string", "null"],
+      "description": "Model to use for translation. If null, will use service-specific defaults.",
+      "examples": ["gpt-3.5-turbo", "gpt-4", "deepseek-v3", "deepseek-r1"]
+    },
+    "prompt-style": {
+      "type": "string",
+      "description": "Style of prompts to use from prompts.json.",
+      "enum": ["default", "chinese", "formal", "casual", "technical", "subtitle"],
+      "default": "default"
+    }
+  },
+  "required": ["to-language"],
+  "additionalProperties": false
+}

@@ -4,6 +4,11 @@ Main Module - Core functionality for translating SRT files.
 This module ties together the SRT parser and translator modules to provide
 the core functionality for translating SRT files with progress tracking.
 It supports async operations for improved performance with multiple files and entries.
+
+主模块 - 翻译SRT文件的核心功能。
+
+本模块将SRT解析器和翻译器模块结合在一起，提供翻译SRT文件的核心功能，并支持进度跟踪。
+它支持异步操作，以提高处理多个文件和条目时的性能。
 """
 
 import os
@@ -29,7 +34,11 @@ logger = logging.getLogger(__name__)
 
 
 class Config:
-    """Configuration loader and validator for the translator."""
+    """
+    Configuration loader and validator for the translator.
+    
+    配置加载器和验证器，用于翻译器的配置。
+    """
     
     DEFAULT_CONFIG_PATH = "config.json"
     
@@ -75,6 +84,10 @@ class Config:
             elif 'api-service-provider' not in config['ai-api-service']:
                 config['ai-api-service']['api-service-provider'] = 'auto'
                 
+            # Set default prompt style if not provided
+            if 'prompt-style' not in config:
+                config['prompt-style'] = 'default'
+                
             return config
             
         except FileNotFoundError:
@@ -105,6 +118,10 @@ class Config:
     def get_output_directory(self) -> Optional[str]:
         """Get the output directory from the config."""
         return self.config.get('output-directory')
+        
+    def get_prompt_style(self) -> str:
+        """Get the prompt style from the config."""
+        return self.config.get('prompt-style', 'default')
 
 
 class LockFile:
@@ -186,7 +203,11 @@ class LockFile:
 
 
 class SRTTranslator:
-    """Main class for translating SRT files."""
+    """
+    Main class for translating SRT files.
+    
+    用于翻译SRT文件的主类。
+    """
 
     def __init__(
         self,
@@ -197,7 +218,8 @@ class SRTTranslator:
         show_progress: bool = True,
         lock_file: Optional[LockFile] = None,
         from_language: str = "auto",
-        output_directory: Optional[str] = None
+        output_directory: Optional[str] = None,
+        prompt_style: str = "default"
     ):
         """
         Initialize the SRT translator.
@@ -213,9 +235,10 @@ class SRTTranslator:
             lock_file: LockFile instance to track processed files
             from_language: Source language (if 'auto', will be inferred)
             output_directory: Directory for output files
+            prompt_style: Style of prompts to use from prompts.json (default, chinese, formal, etc.)
         """
         self.translator = translator_service or TranslatorFactory.create_translator(
-            translator_type, api_key=api_key, model=model
+            translator_type, api_key=api_key, model=model, prompt_style=prompt_style
         )
         self.show_progress = show_progress and TQDM_AVAILABLE
         self.lock_file = lock_file or LockFile()
@@ -725,7 +748,8 @@ async def main_async(config_path: Optional[str] = None) -> int:
                 logger.warning("No API key found in GitHub Secrets")
         
         # Create translator
-        logger.info(f"Creating translator with service provider: {config.get_api_service_provider()}")
+        logger.info(f"Creating translator with service provider: {config.get_api_service_provider()}, prompt style: {config.get_prompt_style()}")
+        logger.info(f"正在创建翻译器，服务提供商: {config.get_api_service_provider()}，提示风格: {config.get_prompt_style()}")
         translator = SRTTranslator(
             translator_type=config.get_api_service_provider(),
             api_key=api_key,
@@ -733,7 +757,8 @@ async def main_async(config_path: Optional[str] = None) -> int:
             show_progress=True,
             lock_file=lock_file,
             from_language=config.get_from_language(),
-            output_directory=config.get_output_directory()
+            output_directory=config.get_output_directory(),
+            prompt_style=config.get_prompt_style()
         )
         
         # Translate all SRT files in the current directory asynchronously
@@ -745,9 +770,11 @@ async def main_async(config_path: Optional[str] = None) -> int:
         
         if output_files:
             logger.info(f"Translation completed successfully. {len(output_files)} files translated.")
+            logger.info(f"翻译成功完成。已翻译 {len(output_files)} 个文件。")
             return 0
         else:
             logger.warning("No files were translated.")
+            logger.warning("没有文件被翻译。")
             return 1
             
     except Exception as e:
