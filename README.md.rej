@@ -1,0 +1,182 @@
+--- README.md
++++ README.md	(revision After)
+@@ -0,0 +1,179 @@
++# Junie Translator Project
++
++A Python program for translating SRT subtitle files using AI services.
++
++## Features
++
++- Translate SRT subtitle files to any language using AI services
++- Process one line at a time for accurate translations
++- Display a progress bar showing translation progress
++- Support for different translation services (OpenAI, DeepSeek, etc.)
++- Customizable AI prompts for different translation styles
++
++## Installation
++
++This project uses [uv](https://github.com/astral-sh/uv) for package management.
++
++```bash
++# Clone the repository
++git clone https://github.com/yourusername/junie-translator-project.git
++cd junie-translator-project
++
++# Install the package
++uv pip install .
++```
++
++## Configuration
++
++### Basic Configuration (config.json)
++
++Create a `config.json` file in your project directory:
++
++```json
++{
++  "from-language": "auto",
++  "to-language": "Spanish",
++  "ai-api-service": {
++    "api-service-provider": "openai",
++    "api-key": "your-api-key-here"
++  },
++  "output-directory": "./output",
++  "model": "gpt-3.5-turbo"
++}
++```
++
++Key options:
++- `from-language`: Source language ("auto" for automatic detection)
++- `to-language`: Target language (required)
++- `ai-api-service`: AI service provider configuration
++- `model`: AI model to use
++
++### AI Provider Configuration (aiprovider.json)
++
++The project includes an `aiprovider.json` file that configures different AI providers (OpenAI, DeepSeek, etc.).
++
++## Usage
++
++### Command Line
++
++```bash
++# Use default config.json in current directory
++srt-translate
++
++# Specify a custom config file
++srt-translate -c my-config.json
++```
++
++### Environment Variables
++
++```bash
++export OPENAI_API_KEY=your-openai-api-key
++export DEEPSEEK_API_KEY=your-deepseek-api-key
++```
++
++### Python API
++
++```python
++from junie_translator_project.main import translate_srt
++
++# Basic usage
++output_path = translate_srt(
++    input_path="input.srt",
++    target_language="Spanish"
++)
++```
++
++## License
++
++This project is licensed under the MIT License.
++
++---
++
++# Junie 翻译项目
++
++一个使用人工智能服务翻译 SRT 字幕文件的 Python 程序。
++
++## 功能
++
++- 使用人工智能服务将 SRT 字幕文件翻译成任何语言
++- 逐行处理以获得准确的翻译
++- 显示翻译进度条
++- 支持不同的翻译服务（OpenAI、DeepSeek 等）
++- 可自定义的 AI 提示，适用于不同的翻译风格
++
++## 安装
++
++本项目使用 [uv](https://github.com/astral-sh/uv) 进行包管理。
++
++```bash
++# 克隆仓库
++git clone https://github.com/yourusername/junie-translator-project.git
++cd junie-translator-project
++
++# 安装包
++uv pip install .
++```
++
++## 配置
++
++### 基本配置 (config.json)
++
++在项目目录中创建 `config.json` 文件：
++
++```json
++{
++  "from-language": "auto",
++  "to-language": "Chinese",
++  "ai-api-service": {
++    "api-service-provider": "openai",
++    "api-key": "你的API密钥"
++  },
++  "output-directory": "./output",
++  "model": "gpt-3.5-turbo"
++}
++```
++
++主要选项：
++- `from-language`：源语言（"auto" 表示自动检测）
++- `to-language`：目标语言（必填）
++- `ai-api-service`：AI 服务提供商配置
++- `model`：使用的 AI 模型
++
++### AI 提供商配置 (aiprovider.json)
++
++项目包含一个 `aiprovider.json` 文件，用于配置不同的 AI 提供商（OpenAI、DeepSeek 等）。
++
++## 使用方法
++
++### 命令行
++
++```bash
++# 使用当前目录中的默认 config.json
++srt-translate
++
++# 指定自定义配置文件
++srt-translate -c my-config.json
++```
++
++### 环境变量
++
++```bash
++export OPENAI_API_KEY=你的openai-api密钥
++export DEEPSEEK_API_KEY=你的deepseek-api密钥
++```
++
++### Python API
++
++```python
++from junie_translator_project.main import translate_srt
++
++# 基本用法
++output_path = translate_srt(
++    input_path="input.srt",
++    target_language="Chinese"
++)
++```
++
++## 许可证
++
++本项目采用 MIT 许可证。
