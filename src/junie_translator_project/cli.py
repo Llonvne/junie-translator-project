@@ -14,6 +14,12 @@ import logging
 import colorlog
 from typing import List, Optional
 
+try:
+    from tqdm.contrib.logging import logging_redirect_tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
+
 from junie_translator_project.main import main as config_main
 
 # Configure colorful logging
@@ -93,7 +99,13 @@ def main(args: Optional[List[str]] = None) -> int:
             logger.debug("Verbose logging enabled")
         
         logger.info(f"Using configuration file: {parsed_args.config}")
-        return config_main(parsed_args.config)
+        
+        # Use tqdm-compatible logging if available
+        if TQDM_AVAILABLE:
+            with logging_redirect_tqdm():
+                return config_main(parsed_args.config)
+        else:
+            return config_main(parsed_args.config)
             
     except Exception as e:
         logger.error(f"Error: {e}", exc_info=True)
