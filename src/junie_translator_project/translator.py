@@ -3,6 +3,7 @@ Translator Module - Handles translation of text using AI services.
 
 This module provides an extensible framework for translating text using
 various AI services like OpenAI, DeepSeek, or other compatible services.
+It supports both synchronous and asynchronous translation methods.
 
 Supported translator services:
 - OpenAI: Uses OpenAI's GPT models for translation
@@ -12,7 +13,12 @@ Supported translator services:
 
 import abc
 import os
-from typing import List, Optional, Dict, Any
+import asyncio
+import logging
+from typing import List, Optional, Dict, Any, Union
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Try to import OpenAI, but don't fail if it's not installed
 try:
@@ -52,6 +58,34 @@ class TranslatorService(abc.ABC):
             List of translated texts
         """
         pass
+        
+    @abc.abstractmethod
+    async def translate_async(self, text: str, target_language: str) -> str:
+        """
+        Asynchronously translate the given text to the target language.
+        
+        Args:
+            text: The text to translate
+            target_language: The target language code or name
+            
+        Returns:
+            The translated text
+        """
+        pass
+        
+    @abc.abstractmethod
+    async def batch_translate_async(self, texts: List[str], target_language: str) -> List[str]:
+        """
+        Asynchronously translate a batch of texts to the target language.
+        
+        Args:
+            texts: List of texts to translate
+            target_language: The target language code or name
+            
+        Returns:
+            List of translated texts
+        """
+        pass
 
 
 class OpenAITranslator(TranslatorService):
@@ -80,6 +114,7 @@ class OpenAITranslator(TranslatorService):
         
         self.model = model
         self.client = openai.OpenAI(api_key=self.api_key)
+        logger.info(f"Initialized OpenAI translator with model: {model}")
 
     def translate(self, text: str, target_language: str) -> str:
         """
@@ -92,6 +127,7 @@ class OpenAITranslator(TranslatorService):
         Returns:
             The translated text
         """
+        logger.debug(f"Translating text to {target_language} using OpenAI")
         prompt = f"Translate the following text to {target_language}. Preserve any formatting and special characters:\n\n{text}"
         
         response = self.client.chat.completions.create(
@@ -104,7 +140,9 @@ class OpenAITranslator(TranslatorService):
             max_tokens=1024
         )
         
-        return response.choices[0].message.content.strip()
+        translated_text = response.choices[0].message.content.strip()
+        logger.debug(f"Translation completed: {len(translated_text)} characters")
+        return translated_text
 
     def batch_translate(self, texts: List[str], target_language: str) -> List[str]:
         """
@@ -120,7 +158,55 @@ class OpenAITranslator(TranslatorService):
         Returns:
             List of translated texts
         """
+        logger.info(f"Batch translating {len(texts)} texts to {target_language}")
         return [self.translate(text, target_language) for text in texts]
+        
+    async def translate_async(self, text: str, target_language: str) -> str:
+        """
+        Asynchronously translate the given text to the target language using OpenAI.
+        
+        Args:
+            text: The text to translate
+            target_language: The target language code or name
+            
+        Returns:
+            The translated text
+        """
+        logger.debug(f"Async translating text to {target_language} using OpenAI")
+        
+        # Use a thread pool to run the synchronous API call asynchronously
+        loop = asyncio.get_event_loop()
+        translated_text = await loop.run_in_executor(
+            None, lambda: self.translate(text, target_language)
+        )
+        
+        logger.debug(f"Async translation completed: {len(translated_text)} characters")
+        return translated_text
+        
+    async def batch_translate_async(self, texts: List[str], target_language: str) -> List[str]:
+        """
+        Asynchronously translate a batch of texts to the target language.
+        
+        This implementation creates tasks for each text and runs them concurrently
+        for improved performance.
+        
+        Args:
+            texts: List of texts to translate
+            target_language: The target language code or name
+            
+        Returns:
+            List of translated texts
+        """
+        logger.info(f"Async batch translating {len(texts)} texts to {target_language}")
+        
+        # Create tasks for each text
+        tasks = [self.translate_async(text, target_language) for text in texts]
+        
+        # Run tasks concurrently and gather results
+        translated_texts = await asyncio.gather(*tasks)
+        
+        logger.info(f"Async batch translation completed for {len(texts)} texts")
+        return translated_texts
 
 
 class DeepSeekTranslator(TranslatorService):
@@ -163,6 +249,8 @@ class DeepSeekTranslator(TranslatorService):
             api_key=self.api_key,
             base_url="https://api.deepseek.com/v1"  # DeepSeek API endpoint
         )
+        
+        logger.info(f"Initialized DeepSeek translator with model: {self.model}")
 
     def translate(self, text: str, target_language: str) -> str:
         """
@@ -175,6 +263,7 @@ class DeepSeekTranslator(TranslatorService):
         Returns:
             The translated text
         """
+        logger.debug(f"Translating text to {target_language} using DeepSeek")
         prompt = f"Translate the following text to {target_language}. Preserve any formatting and special characters:\n\n{text}"
         
         response = self.client.chat.completions.create(
@@ -187,7 +276,9 @@ class DeepSeekTranslator(TranslatorService):
             max_tokens=1024
         )
         
-        return response.choices[0].message.content.strip()
+        translated_text = response.choices[0].message.content.strip()
+        logger.debug(f"Translation completed: {len(translated_text)} characters")
+        return translated_text
 
     def batch_translate(self, texts: List[str], target_language: str) -> List[str]:
         """
@@ -203,11 +294,63 @@ class DeepSeekTranslator(TranslatorService):
         Returns:
             List of translated texts
         """
+        logger.info(f"Batch translating {len(texts)} texts to {target_language}")
         return [self.translate(text, target_language) for text in texts]
+        
+    async def translate_async(self, text: str, target_language: str) -> str:
+        """
+        Asynchronously translate the given text to the target language using DeepSeek.
+        
+        Args:
+            text: The text to translate
+            target_language: The target language code or name
+            
+        Returns:
+            The translated text
+        """
+        logger.debug(f"Async translating text to {target_language} using DeepSeek")
+        
+        # Use a thread pool to run the synchronous API call asynchronously
+        loop = asyncio.get_event_loop()
+        translated_text = await loop.run_in_executor(
+            None, lambda: self.translate(text, target_language)
+        )
+        
+        logger.debug(f"Async translation completed: {len(translated_text)} characters")
+        return translated_text
+        
+    async def batch_translate_async(self, texts: List[str], target_language: str) -> List[str]:
+        """
+        Asynchronously translate a batch of texts to the target language.
+        
+        This implementation creates tasks for each text and runs them concurrently
+        for improved performance.
+        
+        Args:
+            texts: List of texts to translate
+            target_language: The target language code or name
+            
+        Returns:
+            List of translated texts
+        """
+        logger.info(f"Async batch translating {len(texts)} texts to {target_language}")
+        
+        # Create tasks for each text
+        tasks = [self.translate_async(text, target_language) for text in texts]
+        
+        # Run tasks concurrently and gather results
+        translated_texts = await asyncio.gather(*tasks)
+        
+        logger.info(f"Async batch translation completed for {len(texts)} texts")
+        return translated_texts
 
 
 class MockTranslator(TranslatorService):
     """Mock translator service for testing purposes."""
+    
+    def __init__(self):
+        """Initialize the mock translator."""
+        logger.info("Initialized Mock translator")
 
     def translate(self, text: str, target_language: str) -> str:
         """
@@ -220,7 +363,10 @@ class MockTranslator(TranslatorService):
         Returns:
             The "translated" text
         """
-        return f"[{target_language}] {text}"
+        logger.debug(f"Mock translating text to {target_language}")
+        translated_text = f"[{target_language}] {text}"
+        logger.debug(f"Mock translation completed: {len(translated_text)} characters")
+        return translated_text
 
     def batch_translate(self, texts: List[str], target_language: str) -> List[str]:
         """
@@ -233,7 +379,50 @@ class MockTranslator(TranslatorService):
         Returns:
             List of "translated" texts
         """
+        logger.info(f"Mock batch translating {len(texts)} texts to {target_language}")
         return [self.translate(text, target_language) for text in texts]
+        
+    async def translate_async(self, text: str, target_language: str) -> str:
+        """
+        Asynchronously mock translate the given text.
+        
+        Args:
+            text: The text to translate
+            target_language: The target language code or name
+            
+        Returns:
+            The "translated" text
+        """
+        logger.debug(f"Async mock translating text to {target_language}")
+        
+        # Simulate a small delay to mimic async processing
+        await asyncio.sleep(0.01)
+        
+        translated_text = f"[{target_language}] {text}"
+        logger.debug(f"Async mock translation completed: {len(translated_text)} characters")
+        return translated_text
+        
+    async def batch_translate_async(self, texts: List[str], target_language: str) -> List[str]:
+        """
+        Asynchronously mock translate a batch of texts.
+        
+        Args:
+            texts: List of texts to translate
+            target_language: The target language code or name
+            
+        Returns:
+            List of "translated" texts
+        """
+        logger.info(f"Async mock batch translating {len(texts)} texts to {target_language}")
+        
+        # Create tasks for each text
+        tasks = [self.translate_async(text, target_language) for text in texts]
+        
+        # Run tasks concurrently and gather results
+        translated_texts = await asyncio.gather(*tasks)
+        
+        logger.info(f"Async mock batch translation completed for {len(texts)} texts")
+        return translated_texts
 
 
 class TranslatorFactory:

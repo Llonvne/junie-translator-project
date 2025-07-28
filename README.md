@@ -9,11 +9,13 @@ A Python program for translating SRT subtitle files using AI services like OpenA
 - Display a progress bar showing translation progress
 - Output well-named SRT files with source language, target language, and file hash in the filename
 - Extensible architecture that supports different translation services
-- Command-line interface with multiple operation modes
 - Configuration file support for easy setup and reuse
 - Lock file mechanism to avoid duplicate translations
 - Batch processing of multiple SRT files in a directory
 - Source language auto-detection or manual specification
+- Asynchronous processing for improved performance with multiple files and entries
+- Detailed runtime logging for better debugging
+- GitHub Actions support for automatic testing with API keys from GitHub Secrets
 
 ## Installation
 
@@ -40,70 +42,17 @@ uv pip install ".[dev]"
 
 ### Command Line Interface
 
-The package installs a command-line tool called `srt-translate` that you can use to translate SRT files. The tool has three operation modes:
-
-1. **Config Mode**: Use a configuration file to translate all SRT files in the current directory
-2. **File Mode**: Translate a single SRT file
-3. **Directory Mode**: Translate all SRT files in a directory
-
-#### Config Mode
+The package installs a command-line tool called `srt-translate` that uses a configuration file to translate SRT files.
 
 ```bash
 # Use default config.json in current directory
-srt-translate config
+srt-translate
 
 # Specify a custom config file
-srt-translate config -c my-config.json
-```
+srt-translate -c my-config.json
 
-#### File Mode
-
-```bash
-# Basic usage
-srt-translate file input.srt Spanish
-
-# Specify output file
-srt-translate file input.srt French -o output_french.srt
-
-# Specify source language (default is auto-detect)
-srt-translate file input.srt German -f English
-
-# Use a specific API key
-srt-translate file input.srt Japanese -k your-api-key
-
-# Use a different model
-srt-translate file input.srt Italian -m gpt-4
-
-# Specify output directory
-srt-translate file input.srt Chinese -d ./output
-
-# Specify lock file path
-srt-translate file input.srt Russian -l my-lock-file.lock
-
-# Disable progress bar
-srt-translate file input.srt Korean --no-progress
-
-# Use mock translator for testing
-srt-translate file input.srt Portuguese -t mock
-```
-
-#### Directory Mode
-
-```bash
-# Translate all SRT files in a directory
-srt-translate dir ./subtitles Spanish
-
-# Specify file pattern (default is *.srt)
-srt-translate dir ./subtitles French -p "*.en.srt"
-
-# Specify source language
-srt-translate dir ./subtitles German -f English
-
-# Specify output directory
-srt-translate dir ./subtitles Japanese -d ./output
-
-# Use a specific translator service
-srt-translate dir ./subtitles Italian -t openai
+# Enable verbose logging
+srt-translate -v
 ```
 
 ### Configuration File
@@ -137,9 +86,10 @@ export DEEPSEEK_API_KEY=your-deepseek-api-key
 
 ### Python API
 
-You can also use the package as a Python library:
+You can also use the package as a Python library, with both synchronous and asynchronous APIs:
 
 ```python
+# Synchronous API
 from junie_translator_project.main import translate_srt
 
 # Basic usage
@@ -185,66 +135,170 @@ print(f"API service: {config.get_api_service_provider()}")
 # Run with configuration
 exit_code = main("config.json")
 
-# Advanced usage
+# Asynchronous API
+import asyncio
 from junie_translator_project.translator import TranslatorFactory
 from junie_translator_project.main import SRTTranslator, LockFile
 
-# Create a translator service
-translator = TranslatorFactory.create_translator(
-    service_type="openai",
-    api_key="your-api-key",
-    model="gpt-4"
-)
+async def translate_async():
+    # Create a translator service
+    translator = TranslatorFactory.create_translator(
+        service_type="openai",
+        api_key="your-api-key",
+        model="gpt-4"
+    )
+    
+    # Create a lock file manager
+    lock_file = LockFile("my-lock-file.lock")
+    
+    # Create an SRT translator
+    srt_translator = SRTTranslator(
+        translator_service=translator,
+        show_progress=True,
+        lock_file=lock_file,
+        from_language="English",
+        output_directory="./output"
+    )
+    
+    # Translate a file asynchronously
+    output_path = await srt_translator.translate_file_async(
+        input_path="input.srt",
+        target_language="French"
+    )
+    print(f"Translated file saved to: {output_path}")
+    
+    # Translate all files in a directory asynchronously
+    output_files = await srt_translator.translate_directory_async(
+        directory_path="./subtitles",
+        target_language="Spanish",
+        file_pattern="*.srt"
+    )
+    print(f"Translated {len(output_files)} files")
 
-# Create a lock file manager
-lock_file = LockFile("my-lock-file.lock")
+# Run the async function
+asyncio.run(translate_async())
 
-# Create an SRT translator
-srt_translator = SRTTranslator(
-    translator_service=translator,
-    show_progress=True,
-    lock_file=lock_file,
-    from_language="English",
-    output_directory="./output"
-)
+# Advanced usage with batch translation
+from junie_translator_project.translator import OpenAITranslator
 
-# Translate a file
-output_path = srt_translator.translate_file(
-    input_path="input.srt",
-    target_language="French"
-)
+async def batch_translate_async():
+    # Create a translator
+    translator = OpenAITranslator(api_key="your-api-key", model="gpt-3.5-turbo")
+    
+    # Translate multiple texts concurrently
+    texts = ["Hello world", "How are you?", "Good morning"]
+    translated_texts = await translator.batch_translate_async(texts, "Spanish")
+    
+    for original, translated in zip(texts, translated_texts):
+        print(f"{original} -> {translated}")
 
-# Translate all files in a directory
-output_files = srt_translator.translate_directory(
-    directory_path="./subtitles",
-    target_language="Spanish",
-    file_pattern="*.srt"
-)
+# Run the async batch translation
+asyncio.run(batch_translate_async())
+```
+
+### GitHub Actions Support
+
+The translator supports automatic testing with GitHub Actions and can extract API keys from GitHub Secrets.
+
+#### Setting up GitHub Secrets
+
+1. In your GitHub repository, go to Settings > Secrets and variables > Actions
+2. Add your API keys as secrets:
+   - `OPENAI_API_KEY` for OpenAI
+   - `DEEPSEEK_API_KEY` for DeepSeek
+   - Or a generic `API_KEY` that will be used for any service
+
+#### Example GitHub Actions Workflow
+
+```yaml
+name: Test SRT Translation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install uv
+        uv pip install ".[dev]"
+    
+    - name: Run translation test
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        srt-translate -v
 ```
 
 ## Extending the Translator
 
-You can create your own translator service by implementing the `TranslatorService` interface:
+You can create your own translator service by implementing the `TranslatorService` interface. You'll need to implement both synchronous and asynchronous methods:
 
 ```python
+import asyncio
 from junie_translator_project.translator import TranslatorService
 from typing import List
 
 class MyCustomTranslator(TranslatorService):
+    def __init__(self):
+        # Initialize your translator
+        pass
+        
     def translate(self, text: str, target_language: str) -> str:
-        # Implement your translation logic here
+        # Implement your synchronous translation logic here
+        translated_text = f"[{target_language}] {text}"  # Example implementation
         return translated_text
     
     def batch_translate(self, texts: List[str], target_language: str) -> List[str]:
-        # Implement your batch translation logic here
+        # Implement your synchronous batch translation logic here
         return [self.translate(text, target_language) for text in texts]
+        
+    async def translate_async(self, text: str, target_language: str) -> str:
+        # Implement your asynchronous translation logic here
+        # If your API doesn't support async, you can use run_in_executor:
+        loop = asyncio.get_event_loop()
+        translated_text = await loop.run_in_executor(
+            None, lambda: self.translate(text, target_language)
+        )
+        return translated_text
+        
+    async def batch_translate_async(self, texts: List[str], target_language: str) -> List[str]:
+        # Implement your asynchronous batch translation logic here
+        # For better performance, create tasks and run them concurrently:
+        tasks = [self.translate_async(text, target_language) for text in texts]
+        return await asyncio.gather(*tasks)
 
 # Use your custom translator
 from junie_translator_project.main import SRTTranslator
 
+# Synchronous usage
 translator = MyCustomTranslator()
 srt_translator = SRTTranslator(translator_service=translator)
 output_path = srt_translator.translate_file("input.srt", "Spanish")
+
+# Asynchronous usage
+async def translate_with_custom_translator():
+    translator = MyCustomTranslator()
+    srt_translator = SRTTranslator(translator_service=translator)
+    output_path = await srt_translator.translate_file_async("input.srt", "Spanish")
+    return output_path
+
+# Run the async function
+output_path = asyncio.run(translate_with_custom_translator())
 ```
 
 ## License
