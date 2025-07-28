@@ -88,6 +88,10 @@ class Config:
             if 'prompt-style' not in config:
                 config['prompt-style'] = 'default'
                 
+            # Set default enable-post-check if not provided
+            if 'enable-post-check' not in config:
+                config['enable-post-check'] = False
+                
             return config
             
         except FileNotFoundError:
@@ -122,6 +126,10 @@ class Config:
     def get_prompt_style(self) -> str:
         """Get the prompt style from the config."""
         return self.config.get('prompt-style', 'default')
+        
+    def get_enable_post_check(self) -> bool:
+        """Get the enable-post-check flag from the config."""
+        return self.config.get('enable-post-check', False)
 
 
 class LockFile:
@@ -219,7 +227,8 @@ class SRTTranslator:
         lock_file: Optional[LockFile] = None,
         from_language: str = "auto",
         output_directory: Optional[str] = None,
-        prompt_style: str = "default"
+        prompt_style: str = "default",
+        enable_post_check: bool = False
     ):
         """
         Initialize the SRT translator.
@@ -236,9 +245,11 @@ class SRTTranslator:
             from_language: Source language (if 'auto', will be inferred)
             output_directory: Directory for output files
             prompt_style: Style of prompts to use from prompts.json (default, chinese, formal, etc.)
+            enable_post_check: If True, checks translated text for explanations and removes them
         """
         self.translator = translator_service or TranslatorFactory.create_translator(
-            translator_type, api_key=api_key, model=model, prompt_style=prompt_style
+            translator_type, api_key=api_key, model=model, prompt_style=prompt_style,
+            enable_post_check=enable_post_check
         )
         self.show_progress = show_progress and TQDM_AVAILABLE
         self.lock_file = lock_file or LockFile()
@@ -602,7 +613,8 @@ def translate_srt(
     show_progress: bool = True,
     from_language: str = "auto",
     output_directory: Optional[str] = None,
-    lock_file_path: Optional[str] = None
+    lock_file_path: Optional[str] = None,
+    enable_post_check: bool = False
 ) -> str:
     """
     Convenience function to translate an SRT file.
@@ -612,7 +624,6 @@ def translate_srt(
         target_language: Target language code or name
         output_path: Path to the output SRT file (if None, will be generated)
         translator_type: Type of translator service to use ('auto', 'openai', 'deepseek', 'mock')
-                        If 'auto', will auto-detect based on available API keys in environment variables.
         api_key: API key for the translator service (if None, will try to get from environment)
         model: Model to use for translation (if None, will use service-specific defaults:
               gpt-3.5-turbo for OpenAI, deepseek-v3 for DeepSeek)
@@ -620,6 +631,7 @@ def translate_srt(
         from_language: Source language (if 'auto', will be inferred)
         output_directory: Directory for output files
         lock_file_path: Path to the lock file
+        enable_post_check: If True, checks translated text for explanations and removes them
         
     Returns:
         Path to the output SRT file
@@ -633,7 +645,8 @@ def translate_srt(
         show_progress=show_progress,
         lock_file=lock_file,
         from_language=from_language,
-        output_directory=output_directory
+        output_directory=output_directory,
+        enable_post_check=enable_post_check
     )
     
     return translator.translate_file(input_path, target_language, output_path)
@@ -649,7 +662,8 @@ def translate_directory(
     from_language: str = "auto",
     output_directory: Optional[str] = None,
     lock_file_path: Optional[str] = None,
-    file_pattern: str = "*.srt"
+    file_pattern: str = "*.srt",
+    enable_post_check: bool = False
 ) -> List[str]:
     """
     Convenience function to translate all SRT files in a directory.
@@ -665,6 +679,7 @@ def translate_directory(
         output_directory: Directory for output files
         lock_file_path: Path to the lock file
         file_pattern: Pattern to match SRT files (default: "*.srt")
+        enable_post_check: If True, checks translated text for explanations and removes them
         
     Returns:
         List of paths to the output SRT files
@@ -678,7 +693,8 @@ def translate_directory(
         show_progress=show_progress,
         lock_file=lock_file,
         from_language=from_language,
-        output_directory=output_directory
+        output_directory=output_directory,
+        enable_post_check=enable_post_check
     )
     
     return translator.translate_directory(directory_path, target_language, file_pattern)
@@ -758,7 +774,8 @@ async def main_async(config_path: Optional[str] = None) -> int:
             lock_file=lock_file,
             from_language=config.get_from_language(),
             output_directory=config.get_output_directory(),
-            prompt_style=config.get_prompt_style()
+            prompt_style=config.get_prompt_style(),
+            enable_post_check=config.get_enable_post_check()
         )
         
         # Translate all SRT files in the current directory asynchronously

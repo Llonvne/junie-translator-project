@@ -48,6 +48,11 @@
       "description": "Style of prompts to use from prompts.json.",
       "enum": ["default", "chinese", "formal", "casual", "technical", "subtitle"],
       "default": "default"
+    },
+    "enable-post-check": {
+      "type": "boolean",
+      "description": "If enabled, sends the translated text to AI to check for explanations and removes them if found.",
+      "default": false
     }
   },
   "required": ["to-language"],

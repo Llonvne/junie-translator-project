@@ -165,7 +165,8 @@ class TranslatorService(abc.ABC):
 class AIProviderTranslator(TranslatorService):
     """Translator service using AI providers configured in aiprovider.json."""
 
-    def __init__(self, provider: str, api_key: Optional[str] = None, model: Optional[str] = None, prompt_style: str = "default"):
+    def __init__(self, provider: str, api_key: Optional[str] = None, model: Optional[str] = None, 
+                 prompt_style: str = "default", enable_post_check: bool = False):
         """
         Initialize the AI provider translator.
         
@@ -174,7 +175,9 @@ class AIProviderTranslator(TranslatorService):
             api_key: API key for the provider (if None, will try to get from environment)
             model: Model to use for translation (if None, will use provider's default)
             prompt_style: Style of prompts to use from prompts.json (default, chinese, formal, etc.)
+            enable_post_check: If True, checks translated text for explanations and removes them
         """
+        self.enable_post_check = enable_post_check
         if not OPENAI_AVAILABLE:
             raise ImportError(
                 "OpenAI package is not installed. "
@@ -261,6 +264,56 @@ class AIProviderTranslator(TranslatorService):
             f"Unsupported model for {self.provider}: {model}. "
             f"Supported models are: {', '.join(self.available_models.keys())}"
         )
+        
+    def _post_check_translation(self, translated_text: str) -> str:
+        """
+        Check translated text for explanations and remove them if found.
+        
+        This method sends the translated text to the AI to check if it contains
+        explanations, notes, or additional content beyond the translation itself.
+        If such content is found, it is removed to return only the pure translation.
+        
+        Args:
+            translated_text: The translated text to check
+            
+        Returns:
+            The cleaned translated text with explanations removed (if any)
+        """
+        if not self.enable_post_check or self.provider == "mock":
+            return translated_text
+            
+        logger.debug("Performing post-check on translated text")
+        
+        # Create a prompt specifically for checking explanations
+        system_prompt = "You are a translation validator. Your task is to identify and remove any explanations, notes, or additional content that is not part of the actual translation."
+        user_prompt = "The following is a translated text that may contain explanations or notes that are not part of the actual translation. Please return ONLY the translated text without any explanations, notes, or additional content:\n\n" + translated_text
+        
+        # Get model-specific configuration
+        max_tokens = self.model_config.get("max-tokens", 1024)
+        temperature = 0.0  # Use 0 temperature for deterministic output
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            
+            cleaned_text = response.choices[0].message.content.strip()
+            
+            # If the cleaned text is significantly shorter, log that explanations were removed
+            if len(cleaned_text) < len(translated_text) * 0.8:
+                logger.info("Post-check removed explanations from translated text")
+            
+            return cleaned_text
+        except Exception as e:
+            logger.error(f"Error during post-check: {e}", exc_info=True)
+            # If post-check fails, return the original translation
+            return translated_text
 
     def translate(self, text: str, target_language: str) -> str:
         """
@@ -301,6 +354,11 @@ class AIProviderTranslator(TranslatorService):
         
         translated_text = response.choices[0].message.content.strip()
         logger.debug(f"Translation completed: {len(translated_text)} characters")
+        
+        # Apply post-check if enabled
+        if self.enable_post_check:
+            translated_text = self._post_check_translation(translated_text)
+            
         return translated_text
 
     def batch_translate(self, texts: List[str], target_language: str) -> List[str]:

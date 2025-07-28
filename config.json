@@ -7,5 +7,6 @@
   },
   "output-directory": "./output",
   "model": null,
-  "prompt-style": "default"
+  "prompt-style": "default",
+  "enable-post-check": false
 }
