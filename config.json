@@ -1,0 +1,10 @@
+{
+  "from-language": "auto",
+  "to-language": "Spanish",
+  "ai-api-service": {
+    "api-service-provider": "mock",
+    "api-key": null
+  },
+  "output-directory": "./output",
+  "model": null
+}

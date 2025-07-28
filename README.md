@@ -7,9 +7,13 @@ A Python program for translating SRT subtitle files using AI services like OpenA
 - Translate SRT subtitle files to any language using AI services
 - Process one line at a time for accurate translations
 - Display a progress bar showing translation progress
-- Output well-named SRT files with the target language in the filename
+- Output well-named SRT files with source language, target language, and file hash in the filename
 - Extensible architecture that supports different translation services
-- Command-line interface for easy usage
+- Command-line interface with multiple operation modes
+- Configuration file support for easy setup and reuse
+- Lock file mechanism to avoid duplicate translations
+- Batch processing of multiple SRT files in a directory
+- Source language auto-detection or manual specification
 
 ## Installation
 
@@ -36,35 +40,99 @@ uv pip install ".[dev]"
 
 ### Command Line Interface
 
-The package installs a command-line tool called `srt-translate` that you can use to translate SRT files:
+The package installs a command-line tool called `srt-translate` that you can use to translate SRT files. The tool has three operation modes:
+
+1. **Config Mode**: Use a configuration file to translate all SRT files in the current directory
+2. **File Mode**: Translate a single SRT file
+3. **Directory Mode**: Translate all SRT files in a directory
+
+#### Config Mode
+
+```bash
+# Use default config.json in current directory
+srt-translate config
+
+# Specify a custom config file
+srt-translate config -c my-config.json
+```
+
+#### File Mode
 
 ```bash
 # Basic usage
-srt-translate input.srt Spanish
+srt-translate file input.srt Spanish
 
 # Specify output file
-srt-translate input.srt French -o output_french.srt
+srt-translate file input.srt French -o output_french.srt
+
+# Specify source language (default is auto-detect)
+srt-translate file input.srt German -f English
 
 # Use a specific API key
-srt-translate input.srt German -k your-api-key
+srt-translate file input.srt Japanese -k your-api-key
 
 # Use a different model
-srt-translate input.srt Japanese -m gpt-4
+srt-translate file input.srt Italian -m gpt-4
+
+# Specify output directory
+srt-translate file input.srt Chinese -d ./output
+
+# Specify lock file path
+srt-translate file input.srt Russian -l my-lock-file.lock
 
 # Disable progress bar
-srt-translate input.srt Italian --no-progress
+srt-translate file input.srt Korean --no-progress
 
 # Use mock translator for testing
-srt-translate input.srt Chinese -t mock
+srt-translate file input.srt Portuguese -t mock
+```
+
+#### Directory Mode
+
+```bash
+# Translate all SRT files in a directory
+srt-translate dir ./subtitles Spanish
+
+# Specify file pattern (default is *.srt)
+srt-translate dir ./subtitles French -p "*.en.srt"
+
+# Specify source language
+srt-translate dir ./subtitles German -f English
+
+# Specify output directory
+srt-translate dir ./subtitles Japanese -d ./output
+
+# Use a specific translator service
+srt-translate dir ./subtitles Italian -t openai
+```
+
+### Configuration File
+
+You can use a configuration file to store your settings. The default file name is `config.json` in the current directory. Here's an example:
+
+```json
+{
+  "from-language": "auto",
+  "to-language": "Spanish",
+  "ai-api-service": {
+    "api-service-provider": "openai",
+    "api-key": "your-api-key-here"
+  },
+  "output-directory": "./output",
+  "model": "gpt-3.5-turbo"
+}
 ```
 
 ### Environment Variables
 
-You can set the `OPENAI_API_KEY` environment variable instead of passing it with the `-k` option:
+You can set the following environment variables instead of passing them with command-line options or in the configuration file:
 
 ```bash
-export OPENAI_API_KEY=your-api-key
-srt-translate input.srt Spanish
+# For OpenAI
+export OPENAI_API_KEY=your-openai-api-key
+
+# For DeepSeek
+export DEEPSEEK_API_KEY=your-deepseek-api-key
 ```
 
 ### Python API
@@ -81,9 +149,45 @@ output_path = translate_srt(
 )
 print(f"Translated file saved to: {output_path}")
 
+# With additional options
+output_path = translate_srt(
+    input_path="input.srt",
+    target_language="French",
+    output_path="custom_output.srt",
+    translator_type="openai",
+    api_key="your-api-key",
+    model="gpt-4",
+    show_progress=True,
+    from_language="English",  # Specify source language
+    output_directory="./output",
+    lock_file_path="my-lock-file.lock"
+)
+
+# Batch processing
+from junie_translator_project.main import translate_directory
+
+output_files = translate_directory(
+    directory_path="./subtitles",
+    target_language="German",
+    translator_type="openai",
+    file_pattern="*.srt"
+)
+print(f"Translated {len(output_files)} files")
+
+# Using configuration file
+from junie_translator_project.main import Config, main
+
+# Load configuration
+config = Config("config.json")
+print(f"Target language: {config.get_to_language()}")
+print(f"API service: {config.get_api_service_provider()}")
+
+# Run with configuration
+exit_code = main("config.json")
+
 # Advanced usage
 from junie_translator_project.translator import TranslatorFactory
-from junie_translator_project.main import SRTTranslator
+from junie_translator_project.main import SRTTranslator, LockFile
 
 # Create a translator service
 translator = TranslatorFactory.create_translator(
@@ -92,17 +196,29 @@ translator = TranslatorFactory.create_translator(
     model="gpt-4"
 )
 
+# Create a lock file manager
+lock_file = LockFile("my-lock-file.lock")
+
 # Create an SRT translator
 srt_translator = SRTTranslator(
     translator_service=translator,
-    show_progress=True
+    show_progress=True,
+    lock_file=lock_file,
+    from_language="English",
+    output_directory="./output"
 )
 
 # Translate a file
 output_path = srt_translator.translate_file(
     input_path="input.srt",
-    target_language="French",
-    output_path="custom_output.srt"
+    target_language="French"
+)
+
+# Translate all files in a directory
+output_files = srt_translator.translate_directory(
+    directory_path="./subtitles",
+    target_language="Spanish",
+    file_pattern="*.srt"
 )
 ```
 

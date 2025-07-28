@@ -1,0 +1,10 @@
+{
+  "from-language": "auto",
+  "to-language": "Spanish",
+  "ai-api-service": {
+    "api-service-provider": "openai",
+    "api-key": "your-api-key-here"
+  },
+  "output-directory": "./output",
+  "model": "gpt-3.5-turbo"
+}

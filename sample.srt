@@ -1,0 +1,19 @@
+1
+00:00:01,000 --> 00:00:05,000
+Hello, this is a sample subtitle file.
+For testing the translation functionality.
+
+2
+00:00:06,000 --> 00:00:10,000
+The translator should convert this text
+to the target language specified in the config.
+
+3
+00:00:11,000 --> 00:00:15,000
+This will help us verify that the
+lock file mechanism works correctly.
+
+4
+00:00:16,000 --> 00:00:20,000
+And that the output filename includes
+the source language, target language, and hash.

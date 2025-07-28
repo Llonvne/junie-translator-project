@@ -6,6 +6,7 @@ and write translated content back to new SRT files.
 """
 
 import re
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Iterator, Optional
@@ -121,17 +122,34 @@ class SRTParser:
                 file.write('\n')  # Add empty line between entries
 
     @staticmethod
-    def generate_output_filename(input_path: str, target_language: str) -> str:
+    def generate_output_filename(input_path: str, from_language: str, target_language: str, output_dir: Optional[str] = None) -> str:
         """
-        Generate an output filename based on the input path and target language.
+        Generate an output filename based on the input path, source language, target language, and file hash.
         
         Args:
             input_path: Path to the input SRT file
+            from_language: Source language code or name
             target_language: Target language code or name
+            output_dir: Optional output directory
             
         Returns:
             Generated output filename
         """
         input_path = Path(input_path)
         stem = input_path.stem
-        return str(input_path.with_name(f"{stem}_{target_language}{input_path.suffix}"))
+        
+        # Calculate hash of the file content
+        with open(input_path, 'rb') as f:
+            file_hash = hashlib.md5(f.read()).hexdigest()[:8]
+        
+        # Create the new filename with source language, target language, and hash
+        new_filename = f"{stem}_{from_language}{target_language}_{file_hash}{input_path.suffix}"
+        
+        # If output directory is specified, use it
+        if output_dir:
+            output_dir_path = Path(output_dir)
+            # Create the directory if it doesn't exist
+            output_dir_path.mkdir(parents=True, exist_ok=True)
+            return str(output_dir_path / new_filename)
+        else:
+            return str(input_path.with_name(new_filename))
