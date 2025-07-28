@@ -33,6 +33,110 @@ from junie_translator_project.translator import TranslatorService, TranslatorFac
 logger = logging.getLogger(__name__)
 
 
+# Language mapping for common languages
+LANGUAGE_MAPPING = {
+    # English
+    "english": "en",
+    "en": "en",
+    "eng": "en",
+    # Spanish
+    "spanish": "es",
+    "es": "es",
+    "esp": "es",
+    "español": "es",
+    # French
+    "french": "fr",
+    "fr": "fr",
+    "fra": "fr",
+    "français": "fr",
+    # German
+    "german": "de",
+    "de": "de",
+    "deu": "de",
+    "deutsch": "de",
+    # Chinese
+    "chinese": "zh",
+    "zh": "zh",
+    "zho": "zh",
+    "中文": "zh",
+    "mandarin": "zh",
+    # Japanese
+    "japanese": "ja",
+    "ja": "ja",
+    "jpn": "ja",
+    "日本語": "ja",
+    # Korean
+    "korean": "ko",
+    "ko": "ko",
+    "kor": "ko",
+    "한국어": "ko",
+    # Italian
+    "italian": "it",
+    "it": "it",
+    "ita": "it",
+    "italiano": "it",
+    # Portuguese
+    "portuguese": "pt",
+    "pt": "pt",
+    "por": "pt",
+    "português": "pt",
+    # Russian
+    "russian": "ru",
+    "ru": "ru",
+    "rus": "ru",
+    "русский": "ru",
+    # Arabic
+    "arabic": "ar",
+    "ar": "ar",
+    "ara": "ar",
+    "العربية": "ar",
+    # Hindi
+    "hindi": "hi",
+    "hi": "hi",
+    "hin": "hi",
+    "हिन्दी": "hi",
+    # Auto detection
+    "auto": "auto",
+    "automatic": "auto",
+    "detect": "auto",
+}
+
+
+def normalize_language_code(language: str) -> str:
+    """
+    Normalize a language name or code to a standard ISO 639-1 code.
+    
+    Args:
+        language: Language name or code
+        
+    Returns:
+        Normalized ISO 639-1 language code
+    """
+    if not language:
+        return "auto"
+        
+    # Convert to lowercase for case-insensitive matching
+    language_lower = language.lower()
+    
+    # Check if it's in our mapping
+    if language_lower in LANGUAGE_MAPPING:
+        return LANGUAGE_MAPPING[language_lower]
+    
+    # If it's a 2-letter code, assume it's already an ISO code
+    if len(language) == 2 and language.isalpha():
+        return language.lower()
+    
+    # If it's a 3-letter code, assume it's an ISO 639-2 code
+    if len(language) == 3 and language.isalpha():
+        # We don't have a full mapping for 3-letter codes,
+        # so just return it as is and let the translator handle it
+        return language.lower()
+    
+    # If we can't normalize it, return as is
+    logger.warning(f"Could not normalize language: {language}. Using as is.")
+    return language
+
+
 class Config:
     """
     Configuration loader and validator for the translator.
@@ -92,6 +196,9 @@ class Config:
             if 'enable-post-check' not in config:
                 config['enable-post-check'] = False
                 
+            # Normalize language codes
+            self._normalize_language_codes(config)
+                
             return config
             
         except FileNotFoundError:
@@ -99,13 +206,48 @@ class Config:
         except json.JSONDecodeError:
             raise ValueError(f"Config file is not valid JSON: {self.config_path}")
             
+    def _normalize_language_codes(self, config: Dict[str, Any]) -> None:
+        """
+        Normalize language codes in the configuration.
+        
+        Args:
+            config: Configuration dictionary to normalize
+        """
+        # Normalize from-language
+        from_lang = config.get('from-language', 'auto')
+        
+        # If language-code is provided, use it
+        if 'language-code' in config and config['language-code'] and from_lang != 'auto':
+            config['from-language-normalized'] = normalize_language_code(config['language-code'])
+            logger.info(f"Using provided language code '{config['language-code']}' for '{from_lang}'")
+        else:
+            # Otherwise, normalize the from-language
+            config['from-language-normalized'] = normalize_language_code(from_lang)
+            if config['from-language-normalized'] != from_lang:
+                logger.info(f"Normalized source language '{from_lang}' to '{config['from-language-normalized']}'")
+        
+        # Normalize to-language
+        to_lang = config.get('to-language')
+        
+        # If to-language-code is provided, use it
+        if 'to-language-code' in config and config['to-language-code']:
+            config['to-language-normalized'] = normalize_language_code(config['to-language-code'])
+            logger.info(f"Using provided language code '{config['to-language-code']}' for '{to_lang}'")
+        else:
+            # Otherwise, normalize the to-language
+            config['to-language-normalized'] = normalize_language_code(to_lang)
+            if config['to-language-normalized'] != to_lang:
+                logger.info(f"Normalized target language '{to_lang}' to '{config['to-language-normalized']}'")
+            
     def get_from_language(self) -> str:
         """Get the source language from the config."""
-        return self.config.get('from-language', 'auto')
+        # Return the normalized language code if available, otherwise the original value
+        return self.config.get('from-language-normalized', self.config.get('from-language', 'auto'))
         
     def get_to_language(self) -> str:
         """Get the target language from the config."""
-        return self.config['to-language']
+        # Return the normalized language code if available, otherwise the original value
+        return self.config.get('to-language-normalized', self.config['to-language'])
         
     def get_api_service_provider(self) -> str:
         """Get the API service provider from the config."""
@@ -400,7 +542,7 @@ class SRTTranslator:
         
         # Translate each subtitle entry asynchronously
         logger.info(f"Async translating {len(entries)} subtitle entries")
-        translated_entries = await self._translate_entries_async(entries, target_language)
+        translated_entries = await self._translate_entries_async(entries, target_language, input_path)
         
         # Write the translated entries to the output file
         logger.debug(f"Writing translated entries to: {output_path}")
@@ -555,7 +697,8 @@ class SRTTranslator:
     async def _translate_entries_async(
         self,
         entries: List[SubtitleEntry],
-        target_language: str
+        target_language: str,
+        input_file: str = ""
     ) -> List[SubtitleEntry]:
         """
         Asynchronously translate subtitle entries to the target language.
@@ -563,14 +706,30 @@ class SRTTranslator:
         Args:
             entries: List of SubtitleEntry objects
             target_language: Target language code or name
+            input_file: Path to the input file (for logging context)
             
         Returns:
             List of translated SubtitleEntry objects
         """
         logger.debug(f"Async translating {len(entries)} subtitle entries to {target_language}")
         
+        # Try to get the httpx filter from the root logger
+        httpx_filter = None
+        for filter in logging.getLogger().filters:
+            if hasattr(filter, 'set_context'):
+                httpx_filter = filter
+                break
+        
+        # Set the context for the httpx filter if available
+        if httpx_filter:
+            httpx_filter.set_context(input_file, 0, len(entries))
+        
         async def translate_entry(entry: SubtitleEntry) -> SubtitleEntry:
             """Translate a single subtitle entry asynchronously."""
+            # Update the line number in the httpx filter if available
+            if httpx_filter:
+                httpx_filter.current_line = entry.index
+            
             # Translate each line in the entry's content
             tasks = [self.translator.translate_async(line, target_language) for line in entry.content]
             translated_content = await asyncio.gather(*tasks)

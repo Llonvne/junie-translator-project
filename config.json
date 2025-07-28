@@ -1,6 +1,7 @@
 {
   "from-language": "auto",
   "to-language": "Spanish",
+  "to-language-code": "es",
   "ai-api-service": {
     "api-service-provider": "mock",
     "api-key": null

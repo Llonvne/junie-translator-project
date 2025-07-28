@@ -6,14 +6,24 @@
   "properties": {
     "from-language": {
       "type": "string",
-      "description": "Source language for translation. Use 'auto' for automatic detection.",
+      "description": "Source language for translation. Use 'auto' for automatic detection, or specify a language name or ISO code.",
       "default": "auto",
-      "examples": ["auto", "English", "Chinese", "Japanese", "Korean"]
+      "examples": ["auto", "English", "en", "Chinese", "zh", "Japanese", "ja", "Korean", "ko"]
+    },
+    "language-code": {
+      "type": "string",
+      "description": "ISO 639-1 language code for the source language. Only needed if from-language is not 'auto' and is specified as a language name.",
+      "examples": ["en", "es", "fr", "de", "zh", "ja", "ko"]
     },
     "to-language": {
       "type": "string",
-      "description": "Target language for translation.",
-      "examples": ["English", "Spanish", "French", "German", "Chinese", "Japanese", "Korean"]
+      "description": "Target language for translation. Can be specified as a language name or ISO code.",
+      "examples": ["English", "en", "Spanish", "es", "French", "fr", "German", "de", "Chinese", "zh", "Japanese", "ja", "Korean", "ko"]
+    },
+    "to-language-code": {
+      "type": "string",
+      "description": "ISO 639-1 language code for the target language. Only needed if to-language is specified as a language name.",
+      "examples": ["en", "es", "fr", "de", "zh", "ja", "ko"]
     },
     "ai-api-service": {
       "type": "object",
