@@ -1,6 +1,6 @@
 # Junie Translator Project
 
-A Python program for translating SRT subtitle files using AI services like OpenAI.
+A Python program for translating SRT subtitle files using AI services configured in aiprovider.json.
 
 ## Features
 
@@ -130,6 +130,67 @@ Available prompt styles in the default `prompts.json`:
 - `technical`: For technical content with specialized terminology
 - `subtitle`: Specifically for subtitle translation (concise and easy to read quickly)
 
+### AI Provider Configuration
+
+The translator supports configurable AI providers through an `aiprovider.json` file in the project root. This allows you to define different AI providers with their API endpoints, models, and other settings.
+
+Here's an example of the `aiprovider.json` structure:
+
+```json
+{
+  "providers": {
+    "openai": {
+      "api-endpoint": "https://api.openai.com/v1",
+      "models": {
+        "gpt-3.5-turbo": {
+          "max-tokens": 1024,
+          "temperature": 0.3
+        },
+        "gpt-4": {
+          "max-tokens": 2048,
+          "temperature": 0.3
+        }
+      }
+    },
+    "deepseek": {
+      "api-endpoint": "https://api.deepseek.com/v1",
+      "models": {
+        "deepseek-chat": {
+          "max-tokens": 1024,
+          "temperature": 0.3,
+          "aliases": ["deepseek-v3", "v3"]
+        },
+        "deepseek-reasoner": {
+          "max-tokens": 1024,
+          "temperature": 0.3,
+          "aliases": ["deepseek-r1", "r1"]
+        }
+      }
+    },
+    "mock": {
+      "api-endpoint": null,
+      "models": {
+        "mock": {
+          "max-tokens": null,
+          "temperature": null
+        }
+      }
+    }
+  }
+}
+```
+
+To use a specific AI provider, set the `api-service-provider` field in your `config.json`:
+
+```json
+{
+  "ai-api-service": {
+    "api-service-provider": "openai",
+    "api-key": "your-api-key-here"
+  }
+}
+```
+
 ### Colorful, Human-Readable Logs
 
 The translator now supports colorful, human-readable logs for better readability and debugging. Different log levels are displayed in different colors:
@@ -157,15 +218,18 @@ The translator includes support for Chinese in comments, logs, and documentation
 
 ### Environment Variables
 
-You can set the following environment variables instead of passing them with command-line options or in the configuration file:
+You can set the following environment variables instead of passing them with command-line options or in the configuration file. The environment variable names should match the provider names in aiprovider.json with "_API_KEY" appended:
 
 ```bash
-# For OpenAI
+# For providers defined in aiprovider.json
 export OPENAI_API_KEY=your-openai-api-key
-
-# For DeepSeek
 export DEEPSEEK_API_KEY=your-deepseek-api-key
+
+# For any custom provider you add to aiprovider.json
+export CUSTOMPROVIDER_API_KEY=your-custom-provider-api-key
 ```
+
+The translator will automatically detect available API keys and use the corresponding provider.
 
 ### Python API
 
@@ -262,11 +326,15 @@ async def translate_async():
 asyncio.run(translate_async())
 
 # Advanced usage with batch translation
-from junie_translator_project.translator import OpenAITranslator
+from junie_translator_project.translator import AIProviderTranslator
 
 async def batch_translate_async():
-    # Create a translator
-    translator = OpenAITranslator(api_key="your-api-key", model="gpt-3.5-turbo")
+    # Create a translator using a specific provider
+    translator = AIProviderTranslator(
+        provider="openai",
+        api_key="your-api-key", 
+        model="gpt-3.5-turbo"
+    )
     
     # Translate multiple texts concurrently
     texts = ["Hello world", "How are you?", "Good morning"]
