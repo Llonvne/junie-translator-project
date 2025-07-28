@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AI Provider Configuration",
+  "description": "Configuration for AI providers used by Junie Translator",
+  "providers": {
+    "openai": {
+      "api-endpoint": "https://api.openai.com/v1",
+      "models": {
+        "gpt-3.5-turbo": {
+          "max-tokens": 1024,
+          "temperature": 0.3
+        },
+        "gpt-4": {
+          "max-tokens": 2048,
+          "temperature": 0.3
+        }
+      }
+    },
+    "deepseek": {
+      "api-endpoint": "https://api.deepseek.com/v1",
+      "models": {
+        "deepseek-chat": {
+          "max-tokens": 1024,
+          "temperature": 0.3,
+          "aliases": ["deepseek-v3", "v3"]
+        },
+        "deepseek-reasoner": {
+          "max-tokens": 1024,
+          "temperature": 0.3,
+          "aliases": ["deepseek-r1", "r1"]
+        }
+      }
+    },
+    "mock": {
+      "api-endpoint": null,
+      "models": {
+        "mock": {
+          "max-tokens": null,
+          "temperature": null
+        }
+      }
+    }
+  }
+}

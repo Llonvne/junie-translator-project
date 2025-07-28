@@ -3,15 +3,51 @@ Command-Line Interface Module - Provides a CLI for the translator program.
 
 This module provides a command-line interface for translating SRT files
 using the functionality provided by the main module.
+Only config.json configuration is supported.
+
+支持中文注释、日志和文档。
 """
 
 import argparse
-import os
 import sys
-from pathlib import Path
+import logging
+import colorlog
 from typing import List, Optional
 
-from junie_translator_project.main import translate_srt
+try:
+    from tqdm.contrib.logging import logging_redirect_tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
+
+from junie_translator_project.main import main as config_main
+
+# Configure colorful logging
+handler = colorlog.StreamHandler()
+handler.setFormatter(colorlog.ColoredFormatter(
+    '%(log_color)s%(asctime)s [%(levelname)s] %(name)s: %(message)s%(reset)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    log_colors={
+        'DEBUG': 'cyan',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'red,bg_white',
+    },
+    secondary_log_colors={},
+    style='%'
+))
+
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.addHandler(handler)
+
+# Remove any default handlers
+for h in root_logger.handlers[:]:
+    if not isinstance(h, colorlog.StreamHandler):
+        root_logger.removeHandler(h)
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
@@ -30,41 +66,15 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     )
     
     parser.add_argument(
-        "input_file",
-        help="Path to the input SRT file"
+        "-c", "--config",
+        default="config.json",
+        help="Path to the configuration file (default: config.json)"
     )
     
     parser.add_argument(
-        "target_language",
-        help="Target language code or name (e.g., 'Spanish', 'fr', 'German')"
-    )
-    
-    parser.add_argument(
-        "-o", "--output",
-        help="Path to the output SRT file (if not provided, will be generated)"
-    )
-    
-    parser.add_argument(
-        "-t", "--translator",
-        default="auto",
-        choices=["auto", "openai", "deepseek", "mock"],
-        help="Translator service to use ('auto' will detect based on available API keys)"
-    )
-    
-    parser.add_argument(
-        "-k", "--api-key",
-        help="API key for the translator service (if not provided, will try to get from environment)"
-    )
-    
-    parser.add_argument(
-        "-m", "--model",
-        help="Model to use for translation (defaults to gpt-3.5-turbo for OpenAI, deepseek-v3 for DeepSeek)"
-    )
-    
-    parser.add_argument(
-        "--no-progress",
+        "-v", "--verbose",
         action="store_true",
-        help="Disable progress bar"
+        help="Enable verbose logging"
     )
     
     return parser.parse_args(args)
@@ -83,52 +93,22 @@ def main(args: Optional[List[str]] = None) -> int:
     try:
         parsed_args = parse_args(args)
         
-        # Check if input file exists
-        if not os.path.exists(parsed_args.input_file):
-            print(f"Error: Input file not found: {parsed_args.input_file}", file=sys.stderr)
-            return 1
+        # Set logging level based on verbose flag
+        if parsed_args.verbose:
+            logging.getLogger().setLevel(logging.DEBUG)
+            logger.debug("Verbose logging enabled")
         
-        # Get API key from environment if not provided
-        api_key = parsed_args.api_key
+        logger.info(f"Using configuration file: {parsed_args.config}")
         
-        # For explicit service types, check for the appropriate API key
-        if not api_key:
-            if parsed_args.translator == "openai":
-                api_key = os.environ.get("OPENAI_API_KEY")
-                if not api_key:
-                    print(
-                        "Error: OpenAI API key is required. "
-                        "Either provide it with --api-key or set the OPENAI_API_KEY environment variable.",
-                        file=sys.stderr
-                    )
-                    return 1
-            elif parsed_args.translator == "deepseek":
-                api_key = os.environ.get("DEEPSEEK_API_KEY")
-                if not api_key:
-                    print(
-                        "Error: DeepSeek API key is required. "
-                        "Either provide it with --api-key or set the DEEPSEEK_API_KEY environment variable.",
-                        file=sys.stderr
-                    )
-                    return 1
-            # For auto mode, the TranslatorFactory will handle API key detection
-        
-        # Translate the file
-        output_path = translate_srt(
-            input_path=parsed_args.input_file,
-            target_language=parsed_args.target_language,
-            output_path=parsed_args.output,
-            translator_type=parsed_args.translator,
-            api_key=api_key,
-            model=parsed_args.model,
-            show_progress=not parsed_args.no_progress
-        )
-        
-        print(f"Translation completed successfully. Output file: {output_path}")
-        return 0
-        
+        # Use tqdm-compatible logging if available
+        if TQDM_AVAILABLE:
+            with logging_redirect_tqdm():
+                return config_main(parsed_args.config)
+        else:
+            return config_main(parsed_args.config)
+            
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error(f"Error: {e}", exc_info=True)
         return 1
 
 
